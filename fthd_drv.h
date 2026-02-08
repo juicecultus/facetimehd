@@ -103,6 +103,8 @@ struct fthd_private {
 	int sensor_count;
 	int sensor_id0;
 	int sensor_id1;
+	int sensor_width;
+	int sensor_height;
 
 	struct fthd_fmt fmt;
 

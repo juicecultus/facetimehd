@@ -401,12 +401,12 @@ static int fthd_v4l2_adjust_format(struct fthd_private *dev_priv,
 
 	if (pix->width < FTHD_MIN_WIDTH)
 		pix->width = FTHD_MIN_WIDTH;
-	if (pix->width > FTHD_MAX_WIDTH)
-		pix->width = FTHD_MAX_WIDTH;
+	if (pix->width > dev_priv->sensor_width)
+		pix->width = dev_priv->sensor_width;
 	if (pix->height < FTHD_MIN_HEIGHT)
 		pix->height = FTHD_MIN_HEIGHT;
-	if (pix->height > FTHD_MAX_HEIGHT)
-		pix->height = FTHD_MAX_HEIGHT;
+	if (pix->height > dev_priv->sensor_height)
+		pix->height = dev_priv->sensor_height;
 
 	pix->colorspace = V4L2_COLORSPACE_SRGB;
 	pix->field = V4L2_FIELD_NONE;
@@ -533,6 +533,8 @@ static int fthd_v4l2_ioctl_s_parm(struct file *filp, void *priv,
 static int fthd_v4l2_ioctl_enum_framesizes(struct file *filp, void *priv,
 		struct v4l2_frmsizeenum *sizes)
 {
+	struct fthd_private *dev_priv = video_drvdata(filp);
+
 	if (sizes->index)
 		return -EINVAL;
 
@@ -540,9 +542,13 @@ static int fthd_v4l2_ioctl_enum_framesizes(struct file *filp, void *priv,
 	    sizes->pixel_format != V4L2_PIX_FMT_YVYU)
 		return -EINVAL;
 
-	sizes->type = V4L2_FRMSIZE_TYPE_DISCRETE;
-	sizes->discrete.width = FTHD_MAX_WIDTH;
-	sizes->discrete.height = FTHD_MAX_HEIGHT;
+	sizes->type = V4L2_FRMSIZE_TYPE_STEPWISE;
+	sizes->stepwise.min_width = FTHD_MIN_WIDTH;
+	sizes->stepwise.max_width = dev_priv->sensor_width;
+	sizes->stepwise.step_width = 8;
+	sizes->stepwise.min_height = FTHD_MIN_HEIGHT;
+	sizes->stepwise.max_height = dev_priv->sensor_height;
+	sizes->stepwise.step_height = 2;
 
 	return 0;
 }
@@ -550,6 +556,8 @@ static int fthd_v4l2_ioctl_enum_framesizes(struct file *filp, void *priv,
 static int fthd_v4l2_ioctl_enum_frameintervals(struct file *filp, void *priv,
 		struct v4l2_frmivalenum *interval)
 {
+	struct fthd_private *dev_priv = video_drvdata(filp);
+
 	pr_debug("%s\n", __FUNCTION__);
 
 	if (interval->index)
@@ -561,8 +569,8 @@ static int fthd_v4l2_ioctl_enum_frameintervals(struct file *filp, void *priv,
 		return -EINVAL;
 
 	if (interval->width & 7
-	    || interval->width > FTHD_MAX_WIDTH
-	    || interval->height > FTHD_MAX_HEIGHT)
+	    || interval->width > dev_priv->sensor_width
+	    || interval->height > dev_priv->sensor_height)
 		return -EINVAL;
 
 	interval->type = V4L2_FRMIVAL_TYPE_DISCRETE;
@@ -732,10 +740,10 @@ int fthd_v4l2_register(struct fthd_private *dev_priv)
 		video_device_release(vdev);
 		goto fail_vdev;
 	}
-	dev_priv->fmt.fmt.sizeimage = 1280 * 720 * 2;
+	dev_priv->fmt.fmt.sizeimage = dev_priv->sensor_width * dev_priv->sensor_height * 2;
 	dev_priv->fmt.fmt.pixelformat = V4L2_PIX_FMT_YUYV;
-	dev_priv->fmt.fmt.width = 1280;
-	dev_priv->fmt.fmt.height = 720;
+	dev_priv->fmt.fmt.width = dev_priv->sensor_width;
+	dev_priv->fmt.fmt.height = dev_priv->sensor_height;
 	dev_priv->fmt.planes = 1;
 
 	fthd_v4l2_adjust_format(dev_priv, &dev_priv->fmt.fmt);

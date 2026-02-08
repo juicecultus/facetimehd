@@ -8,6 +8,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/dmi.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -461,6 +462,17 @@ static int fthd_pci_probe(struct pci_dev *pdev,
 	dev_priv->ddr_model = 4;
 	dev_priv->ddr_speed = 450;
 	dev_priv->frametime = 40; /* 25 fps */
+
+	/* MacBook 12-inch (8,1/9,1/10,1) has a 480p sensor (848x588) */
+	if (dmi_match(DMI_PRODUCT_NAME, "MacBook8,1") ||
+	    dmi_match(DMI_PRODUCT_NAME, "MacBook9,1") ||
+	    dmi_match(DMI_PRODUCT_NAME, "MacBook10,1")) {
+		dev_priv->sensor_width = 848;
+		dev_priv->sensor_height = 588;
+	} else {
+		dev_priv->sensor_width = 1280;
+		dev_priv->sensor_height = 720;
+	}
 
 	spin_lock_init(&dev_priv->io_lock);
 	mutex_init(&dev_priv->vb2_queue_lock);

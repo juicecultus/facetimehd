@@ -1115,16 +1115,20 @@ int fthd_start_channel(struct fthd_private *dev_priv, int channel)
 	if (ret)
 		return ret;
 
-	if (dev_priv->fmt.fmt.width < 1280 ||
-	    dev_priv->fmt.fmt.height < 720) {
-		x1 = 160;
-		x2 = 960;
+	if (dev_priv->fmt.fmt.width < dev_priv->sensor_width ||
+	    dev_priv->fmt.fmt.height < dev_priv->sensor_height) {
+		/* Center crop within sensor bounds */
+		x1 = (dev_priv->sensor_width - dev_priv->fmt.fmt.width) / 2;
+		x2 = x1 + dev_priv->fmt.fmt.width;
+		/* Clamp to sensor bounds */
+		if (x2 > dev_priv->sensor_width)
+			x2 = dev_priv->sensor_width;
 	} else {
 		x1 = 0;
-		x2 = 1280;
+		x2 = dev_priv->sensor_width;
 	}
 
-	ret = fthd_isp_cmd_channel_crop_set(dev_priv, 0, x1, 0, x2, 720);
+	ret = fthd_isp_cmd_channel_crop_set(dev_priv, 0, x1, 0, x2, dev_priv->sensor_height);
 	if (ret)
 		return ret;
 
