@@ -303,8 +303,11 @@ static struct vb2_ops vb2_queue_ops = {
 	.start_streaming        = fthd_start_streaming,
 	.stop_streaming         = fthd_stop_streaming,
 	.buf_queue              = fthd_buffer_queue,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6,10,0)
+	/* Removed in 6.10: vb2 core now handles queue->lock during waits */
 	.wait_prepare           = vb2_ops_wait_prepare,
 	.wait_finish            = vb2_ops_wait_finish,
+#endif
 };
 
 static struct v4l2_file_operations fthd_vdev_fops = {
