@@ -677,7 +677,7 @@ int fthd_isp_cmd_channel_crop_set(struct fthd_private *dev_priv, int channel,
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.channel = channel;
 	cmd.x1 = x1;
-	cmd.y2 = y2;
+	cmd.y1 = y1;
 	cmd.x2 = x2;
 	cmd.y2 = y2;
 	len = sizeof(cmd);
@@ -1115,22 +1115,44 @@ int fthd_start_channel(struct fthd_private *dev_priv, int channel)
 	if (ret)
 		return ret;
 
-	if (dev_priv->fmt.fmt.width < dev_priv->sensor_width ||
-	    dev_priv->fmt.fmt.height < dev_priv->sensor_height) {
-		/* Center crop within sensor bounds */
-		x1 = (dev_priv->sensor_width - dev_priv->fmt.fmt.width) / 2;
-		x2 = x1 + dev_priv->fmt.fmt.width;
-		/* Clamp to sensor bounds */
-		if (x2 > dev_priv->sensor_width)
-			x2 = dev_priv->sensor_width;
-	} else {
-		x1 = 0;
-		x2 = dev_priv->sensor_width;
-	}
+	/*
+	 * Pick the largest centered crop window on the sensor whose aspect
+	 * ratio matches the requested output, then let the ISP scale it
+	 * uniformly to the output buffer. This preserves the field of view
+	 * and avoids the aspect-ratio distortion (horizontal crop-zoom +
+	 * vertical squish) that resulted from always cropping the full
+	 * sensor height.
+	 */
+	{
+		int sw = dev_priv->sensor_width;
+		int sh = dev_priv->sensor_height;
+		int ow = dev_priv->fmt.fmt.width;
+		int oh = dev_priv->fmt.fmt.height;
+		int crop_w, crop_h, y1, y2;
 
-	ret = fthd_isp_cmd_channel_crop_set(dev_priv, 0, x1, 0, x2, dev_priv->sensor_height);
-	if (ret)
-		return ret;
+		if ((long)ow * sh > (long)oh * sw) {
+			/* output wider than sensor: full width, reduce height */
+			crop_w = sw;
+			crop_h = (int)((long)sw * oh / ow);
+		} else {
+			/* output taller/narrower: full height, reduce width */
+			crop_h = sh;
+			crop_w = (int)((long)sh * ow / oh);
+		}
+		if (crop_w > sw)
+			crop_w = sw;
+		if (crop_h > sh)
+			crop_h = sh;
+
+		x1 = (sw - crop_w) / 2;
+		x2 = x1 + crop_w;
+		y1 = (sh - crop_h) / 2;
+		y2 = y1 + crop_h;
+
+		ret = fthd_isp_cmd_channel_crop_set(dev_priv, 0, x1, y1, x2, y2);
+		if (ret)
+			return ret;
+	}
 
 	switch(dev_priv->fmt.fmt.pixelformat) {
 	case V4L2_PIX_FMT_YUYV:
