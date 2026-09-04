@@ -389,7 +389,7 @@ static int fthd_v4l2_ioctl_enum_fmt_vid_cap(struct file *filp, void *priv,
 	}
 
 	fmt->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	strncpy(fmt->description, desc, sizeof(fmt->description));
+	strscpy(fmt->description, desc, sizeof(fmt->description));
 
 	return 0;
 }
